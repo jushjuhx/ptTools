@@ -12,7 +12,9 @@ Array.prototype.contains = function (needle) {
     }
     return false;
 };
+//歌单ID
 const musicListId = "2092474396";
+//页面参数
 const config = {
     musicLink : "http://music.163.com/#/playlist?id=",
     musicFrame : "contentFrame",
