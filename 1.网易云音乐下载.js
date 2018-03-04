@@ -12,21 +12,21 @@ Array.prototype.contains = function (needle) {
     }
     return false;
 };
-const musicListId = "2092474396";
+const songListId = "2092474396";
 const config = {
-    musicLink : "http://music.163.com/#/playlist?id=",
-    musicFrame : "contentFrame",
+    songLink : "http://music.163.com/#/playlist?id=",
+    songFrame : "contentFrame",
     playList : "span.ply",
     listName: "h2.f-ff2.f-brk",
-    musicNameList: "a > b"
-
+    songNameList: "a > b",
+    hoverSelector: ".m-table > tbody > tr"
 };
 (async () => {
     const browser = await puppeteer.launch({headless:false});
     const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(2*60*1000)
-    let musicListName = null;
-    let musicName = null;
+    page.setDefaultNavigationTimeout(2*60*1000);
+    let songListName = null;
+    let songName = null;
     let lock = false;
     let logged = [];
     await page.setRequestInterception(true);
@@ -36,7 +36,7 @@ const config = {
             if (!logged.contains(request.url())) {
                 lock = false;
                 logged.push(request.url());
-                downloadFile(request.url(), musicListName, musicName);
+                downloadFile(request.url(), songListName, songName);
             }
             request.abort();
         }
@@ -46,25 +46,28 @@ const config = {
     });
     await page.setViewport({width: 1027, height: 768});
     console.log("等待加载页面...");
-    await page.goto(config.musicLink + musicListId);
+    await page.goto(config.songLink + songListId);
     console.log("加载页面成功");
     //获取播放页面的iframe
-    const mPage = await page.frames().find(f => f.name() === config.musicFrame);
+    const mPage = await page.frames().find(f => f.name() === config.songFrame);
     const playList = await mPage.$$(config.playList);
-    musicListName = await mPage.$eval(config.listName, mf => mf.innerHTML);
-    mkdirp(musicListName, function (err) {
+    songListName = await mPage.$eval(config.listName, mf => mf.innerHTML);
+    songListName = songListName.replace(/[:"\\/<>?|]/g,"_");
+    mkdirp(songListName, function (err) {
         if (err) {
             console.log(err);
         }
     });
-    const musicNames = await mPage.$$eval(config.musicNameList, bs => {
+    const songNames = await mPage.$$eval(config.songNameList, bs => {
         return bs.map(b => {
             return b.title
         });
     });
     for (let i = 0; i < playList.length; i++) {
+        await mPage.hover(config.hoverSelector + ":nth-child(" + (i+1) + ")");
         lock = true;
-        musicName = musicNames[i] + ".mp3";
+        songName = songNames[i] + ".mp3";
+        songName = songName.replace(/[:"\\/<>?|]/g,"_");
         //尝试至多5次，没有获取到地址就放弃
         const retryCount = 5;
         for (let j = 0; j < retryCount; j++) {
@@ -75,14 +78,14 @@ const config = {
             }
             if (j === retryCount - 1 && lock === true) {
                 lock = false;
-                console.log("下载 " + musicName + " 失败")
+                console.log("下载 " + songName + " 失败")
             }
             await page.waitFor(500);
         }
-        //按3次下箭头就会挪动4个。偷懒的硬编码。。。。。。。。。。
-        if (i % 4 !== 0) {
-            await page.keyboard.press("ArrowDown")
-        }
+        // //按3次下箭头就会挪动4个。偷懒的硬编码。。。。。。。。。。
+        // if (i % 4 !== 0) {
+        //     await page.keyboard.press("ArrowDown")
+        // }
     }
 })();
 
